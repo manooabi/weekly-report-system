@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ========================================
+// 1. ROLES
+// ========================================
+
+model Role {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String
+
+  users User[]
+
+  @@map("roles")
+}
+
+// ========================================
+// 2. REPORT STATUSES
+// ========================================
+
+model ReportStatus {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String
+
+  reports Report[]
+
+  @@map("report_statuses")
+}
+
+// ========================================
+// 3. TASK PRIORITIES
+// ========================================
+
+model TaskPriority {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String
+
+  tasks ReportTask[]
+
+  @@map("task_priorities")
+}
+
+// ========================================
+// 4. TASK STATUSES
+// ========================================
+
+model TaskStatus {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String
+
+  tasks ReportTask[]
+
+  @@map("task_statuses")
+}
+
+// ========================================
+// 5. TASK TYPES
+// ========================================
+
+model TaskType {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String
+
+  reportHours ReportHour[]
+
+  @@map("task_types")
+}
+
+// ========================================
+// 6. REVIEW ACTIONS
+// ========================================
+
+model ReviewAction {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String
+
+  reportReviews ReportReview[]
+
+  @@map("review_actions")
+}
