@@ -6,9 +6,10 @@ datasource db {
   provider = "mysql"
 }
 
-// ========================================
+
+// ============================================================
 // 1. ROLES
-// ========================================
+// ============================================================
 
 model Role {
   id   Int    @id @default(autoincrement())
@@ -20,9 +21,10 @@ model Role {
   @@map("roles")
 }
 
-// ========================================
+
+// ============================================================
 // 2. REPORT STATUSES
-// ========================================
+// ============================================================
 
 model ReportStatus {
   id   Int    @id @default(autoincrement())
@@ -34,9 +36,10 @@ model ReportStatus {
   @@map("report_statuses")
 }
 
-// ========================================
+
+// ============================================================
 // 3. TASK PRIORITIES
-// ========================================
+// ============================================================
 
 model TaskPriority {
   id   Int    @id @default(autoincrement())
@@ -48,9 +51,10 @@ model TaskPriority {
   @@map("task_priorities")
 }
 
-// ========================================
+
+// ============================================================
 // 4. TASK STATUSES
-// ========================================
+// ============================================================
 
 model TaskStatus {
   id   Int    @id @default(autoincrement())
@@ -62,9 +66,10 @@ model TaskStatus {
   @@map("task_statuses")
 }
 
-// ========================================
+
+// ============================================================
 // 5. TASK TYPES
-// ========================================
+// ============================================================
 
 model TaskType {
   id   Int    @id @default(autoincrement())
@@ -76,9 +81,10 @@ model TaskType {
   @@map("task_types")
 }
 
-// ========================================
+
+// ============================================================
 // 6. REVIEW ACTIONS
-// ========================================
+// ============================================================
 
 model ReviewAction {
   id   Int    @id @default(autoincrement())
@@ -88,4 +94,280 @@ model ReviewAction {
   reportReviews ReportReview[]
 
   @@map("review_actions")
+}
+
+
+// ============================================================
+// 7. CATEGORIES
+// ============================================================
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  projects Project[]
+
+  @@map("categories")
+}
+
+
+// ============================================================
+// 8. USERS
+// ============================================================
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  roleId       Int      @map("role_id")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  role     Role             @relation(fields: [roleId], references: [id])
+  projects ProjectMember[]
+  reports  Report[]
+  versions ReportVersion[] @relation("VersionCreatedBy")
+  reviews  ReportReview[]  @relation("ReviewReviewer")
+
+  @@index([roleId])
+  @@map("users")
+}
+
+
+// ============================================================
+// 9. PROJECTS
+// ============================================================
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  categoryId  Int      @map("category_id")
+  name        String   @unique
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  category Category        @relation(fields: [categoryId], references: [id])
+  members  ProjectMember[]
+  reports  Report[]
+
+  @@index([categoryId])
+  @@map("projects")
+}
+
+
+// ============================================================
+// 10. PROJECT MEMBERS
+// ============================================================
+
+model ProjectMember {
+  id         Int      @id @default(autoincrement())
+  projectId  Int      @map("project_id")
+  userId     Int      @map("user_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+
+// ============================================================
+// 11. REPORTS
+// ============================================================
+
+model Report {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @map("user_id")
+  projectId        Int      @map("project_id")
+  weekStart        DateTime @db.Date @map("week_start")
+  weekEnd          DateTime @db.Date @map("week_end")
+  statusId         Int      @map("status_id")
+  currentVersionId Int?     @unique @map("current_version_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  status ReportStatus @relation(fields: [statusId], references: [id])
+
+  versions ReportVersion[] @relation("ReportVersions")
+
+  currentVersion ReportVersion? @relation("CurrentReportVersion", fields: [currentVersionId], references: [id])
+
+  reviews ReportReview[]
+
+  @@unique([userId, projectId, weekStart, weekEnd])
+  @@index([userId])
+  @@index([projectId])
+  @@index([statusId])
+  @@index([weekStart])
+  @@index([weekEnd])
+  @@map("reports")
+}
+
+
+// ============================================================
+// 12. REPORT VERSIONS
+// ============================================================
+
+model ReportVersion {
+  id            Int       @id @default(autoincrement())
+  reportId      Int       @map("report_id")
+  versionNumber Int       @map("version_number")
+  createdById   Int       @map("created_by_id")
+  nextWeekPlan  String?   @db.Text @map("next_week_plan")
+  notes         String?   @db.Text
+  links         String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  submittedAt   DateTime? @map("submitted_at")
+
+  report    Report @relation("ReportVersions", fields: [reportId], references: [id])
+
+  createdBy User @relation("VersionCreatedBy", fields: [createdById], references: [id])
+
+  currentForReport Report? @relation("CurrentReportVersion")
+
+  tasks        ReportTask[]
+  achievements ReportAchievement[]
+  blockers     ReportBlocker[]
+  hours        ReportHour[]
+  reviews      ReportReview[]
+
+  @@unique([reportId, versionNumber])
+  @@index([reportId])
+  @@index([createdById])
+  @@map("report_versions")
+}
+
+
+// ============================================================
+// 13. REPORT TASKS
+// ============================================================
+
+model ReportTask {
+  id                Int      @id @default(autoincrement())
+  reportVersionId   Int      @map("report_version_id")
+  taskName          String   @map("task_name")
+  priorityId        Int      @map("priority_id")
+  plannedPercentage Decimal  @db.Decimal(5, 2) @map("planned_percentage")
+  actualPercentage  Decimal  @db.Decimal(5, 2) @map("actual_percentage")
+  statusId          Int      @map("status_id")
+  plannedHours      Decimal  @db.Decimal(8, 2) @map("planned_hours")
+  spentHours        Decimal  @db.Decimal(8, 2) @map("spent_hours")
+  deliverable       String?  @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  reportVersion ReportVersion @relation(fields: [reportVersionId], references: [id])
+
+  priority TaskPriority @relation(fields: [priorityId], references: [id])
+
+  status TaskStatus @relation(fields: [statusId], references: [id])
+
+  @@index([reportVersionId])
+  @@index([priorityId])
+  @@index([statusId])
+  @@map("report_tasks")
+}
+
+
+// ============================================================
+// 14. REPORT ACHIEVEMENTS
+// ============================================================
+
+model ReportAchievement {
+  id               Int      @id @default(autoincrement())
+  reportVersionId  Int      @map("report_version_id")
+  achievement      String   @db.Text
+  isKeyAchievement Boolean  @default(false) @map("is_key_achievement")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  reportVersion ReportVersion @relation(fields: [reportVersionId], references: [id])
+
+  @@index([reportVersionId])
+  @@map("report_achievements")
+}
+
+
+// ============================================================
+// 15. REPORT BLOCKERS
+// ============================================================
+
+model ReportBlocker {
+  id              Int      @id @default(autoincrement())
+  reportVersionId Int      @map("report_version_id")
+  blocker         String   @db.Text
+  isKeyBlocker    Boolean  @default(false) @map("is_key_blocker")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  reportVersion ReportVersion @relation(fields: [reportVersionId], references: [id])
+
+  @@index([reportVersionId])
+  @@map("report_blockers")
+}
+
+
+// ============================================================
+// 16. REPORT HOURS
+// ============================================================
+
+model ReportHour {
+  id              Int      @id @default(autoincrement())
+  reportVersionId Int      @map("report_version_id")
+  taskTypeId      Int      @map("task_type_id")
+  hours           Decimal  @db.Decimal(8, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  reportVersion ReportVersion @relation(fields: [reportVersionId], references: [id])
+
+  taskType TaskType @relation(fields: [taskTypeId], references: [id])
+
+  @@unique([reportVersionId, taskTypeId])
+  @@index([taskTypeId])
+  @@map("report_hours")
+}
+
+
+// ============================================================
+// 17. REPORT REVIEWS
+// ============================================================
+
+model ReportReview {
+  id              Int      @id @default(autoincrement())
+  reportId        Int      @map("report_id")
+  reportVersionId Int      @map("report_version_id")
+  reviewerId      Int      @map("reviewer_id")
+  actionId        Int      @map("action_id")
+  comment         String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  report Report @relation(fields: [reportId], references: [id])
+
+  reportVersion ReportVersion @relation(fields: [reportVersionId], references: [id])
+
+  reviewer User @relation("ReviewReviewer", fields: [reviewerId], references: [id])
+
+  action ReviewAction @relation(fields: [actionId], references: [id])
+
+  @@index([reportId])
+  @@index([reportVersionId])
+  @@index([reviewerId])
+  @@index([actionId])
+  @@map("report_reviews")
 }
