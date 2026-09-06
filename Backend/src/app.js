@@ -1,4 +1,6 @@
 const express = require('express');
+const errorHandler = require('./middleware/error.middleware');
+
 
 const app = express();
 
@@ -9,5 +11,6 @@ app.get('/', (req, res) => {
         message: 'Weekly Report System API is running'
     });
 });
-
+// Centralized error handler
+app.use(errorHandler);
 module.exports = app;
