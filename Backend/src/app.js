@@ -5,6 +5,10 @@ const userRoutes = require('./routes/user.routes');
 const categoryRoutes = require('./routes/category.routes');
 const projectRoutes = require('./routes/project.routes');
 const projectMemberRoutes = require('./routes/project-member.routes');
+const reportRoutes = require('./routes/report.routes');
+// const reportRoutes = require('./routes/report.routes');
+
+
 
 
 
@@ -18,6 +22,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/projects', projectMemberRoutes);
+app.use('/api/reports', reportRoutes);
+// app.use('/api/reports', reportRoutes);
 
 app.get('/', (req, res) => {
     res.json({
