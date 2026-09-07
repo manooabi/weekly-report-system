@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const { PrismaClient } = require('@prisma/client');
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+const { hashPassword } = require('../src/utils/password');
 
 const adapter = new PrismaMariaDb({
     host: 'localhost',
@@ -35,7 +36,39 @@ async function main() {
         ],
         skipDuplicates: true
     });
+const roles = await prisma.role.findMany({
+    where: {
+        code: {
+            in: ['ADMIN', 'MANAGER', 'TEAM_MEMBER']
+        }
+    }
+});
 
+const roleMap = Object.fromEntries(
+    roles.map(role => [role.code, role.id])
+);
+
+const { hashPassword } = require('../src/utils/password');
+
+const passwordHash = await hashPassword('Password123!');
+
+await prisma.user.createMany({
+    data: [
+        {
+            name: 'System Admin',
+            email: 'admin@example.com',
+            passwordHash,
+            roleId: roleMap.ADMIN
+        },
+        {
+            name: 'John Manager',
+            email: 'manager@example.com',
+            passwordHash,
+            roleId: roleMap.MANAGER
+        }
+    ],
+    skipDuplicates: true
+});
 
     // ========================================================
     // 2. REPORT STATUSES
