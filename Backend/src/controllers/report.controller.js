@@ -398,6 +398,146 @@ const getReportReviews = async (req, res, next) => {
         next(error);
     }
 };
+const getDashboardSummary = async (req, res, next) => {
+    try {
+        const summary = await reportService.getDashboardSummary();
+
+        res.status(200).json({
+            success: true,
+            message: 'Dashboard summary retrieved successfully',
+            data: summary
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+const getManagerReports = async (req, res, next) => {
+    try {
+const result = await reportService.getManagerReports({
+    ...req.query,
+    page: Number(req.query.page || 1),
+    limit: Number(req.query.limit || 10)
+});
+        res.status(200).json({
+            success: true,
+            message: 'Manager reports retrieved successfully',
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+const getReportVersions = async (req, res, next) => {
+    try {
+        const reportId = Number(req.params.reportId);
+        const userId = req.user.userId;
+        const role = req.user.role;
+
+        const versions = await reportService.getReportVersions({
+            reportId,
+            userId,
+            role
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Report versions retrieved successfully',
+            data: versions
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+const getStatusByMember = async (req, res, next) => {
+    try {
+
+        const result = await reportService.getStatusByMember();
+
+        res.status(200).json({
+            success: true,
+            message: 'Report status by member retrieved successfully',
+            data: result
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+const getWorkloadByProject = async (req, res, next) => {
+    try {
+
+        const result = await reportService.getWorkloadByProject();
+
+        res.status(200).json({
+            success: true,
+            message: 'Workload by project retrieved successfully',
+            data: result
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+const getTimeByTaskType = async (req, res, next) => {
+    try {
+
+        const result = await reportService.getTimeByTaskType();
+
+        res.status(200).json({
+            success: true,
+            message: 'Time by task type retrieved successfully',
+            data: result
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+const getTaskTrend = async (req, res, next) => {
+    try {
+
+        const result = await reportService.getTaskTrend();
+
+        res.status(200).json({
+            success: true,
+            message: 'Task trend retrieved successfully',
+            data: result
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+const getOpenBlockers = async (req, res, next) => {
+    try {
+
+        const result = await reportService.getOpenBlockers();
+
+        res.status(200).json({
+            success: true,
+            message: 'Open blockers retrieved successfully',
+            data: result
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+const getRecentActivity = async (req, res, next) => {
+    try {
+
+        const result = await reportService.getRecentActivity();
+
+        res.status(200).json({
+            success: true,
+            message: 'Recent activity retrieved successfully',
+            data: result
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
 module.exports = {
     createReport,
     getReports,
@@ -419,5 +559,14 @@ submitReportVersion,
 requestReportCorrection,
 createCorrectionVersion,
 approveReport,
-getReportReviews
+getReportReviews,
+getDashboardSummary,
+getManagerReports,
+getReportVersions,
+getStatusByMember,
+getWorkloadByProject,
+getTimeByTaskType,
+getTaskTrend,
+getOpenBlockers,
+getRecentActivity
 };

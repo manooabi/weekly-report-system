@@ -1543,6 +1543,550 @@ const getReportReviews = async ({
 
     return reviews;
 };
+const getDashboardSummary = async () => {
+
+    const submittedStatus = await prisma.reportStatus.findUnique({
+        where: {
+            code: 'SUBMITTED'
+        }
+    });
+
+    const correctionStatus = await prisma.reportStatus.findUnique({
+        where: {
+            code: 'CORRECTION_REQUESTED'
+        }
+    });
+
+    const approvedStatus = await prisma.reportStatus.findUnique({
+        where: {
+            code: 'APPROVED'
+        }
+    });
+
+    if (!submittedStatus || !correctionStatus || !approvedStatus) {
+        const error = new Error('Required report statuses not found');
+        error.statusCode = 500;
+        throw error;
+    }
+
+    // Get current week's Monday and Sunday
+    const today = new Date();
+
+    const day = today.getDay();
+
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+    monday.setHours(0, 0, 0, 0);
+
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    // Get all reports for this week
+    const reports = await prisma.report.findMany({
+        where: {
+            weekStart: {
+                gte: monday
+            },
+            weekEnd: {
+                lte: sunday
+            }
+        }
+    });
+
+    const totalReports = reports.length;
+
+    const submittedCount = reports.filter(
+        report => report.statusId === submittedStatus.id
+    ).length;
+
+    const correctionCount = reports.filter(
+        report => report.statusId === correctionStatus.id
+    ).length;
+
+    const approvedCount = reports.filter(
+        report => report.statusId === approvedStatus.id
+    ).length;
+
+    const complianceRate = totalReports > 0
+        ? Number(
+            (((submittedCount + approvedCount) / totalReports) * 100).toFixed(2)
+        )
+        : 0;
+
+    return {
+        weekStart: monday,
+        weekEnd: sunday,
+        totalReports,
+        submittedCount,
+        correctionCount,
+        approvedCount,
+        complianceRate
+    };
+};
+const getManagerReports = async ({
+    userId,
+    projectId,
+    statusId,
+    startDate,
+    endDate,
+     page = 1,
+    limit = 10
+}) => {
+
+    const where = {};
+
+    if (userId) {
+        where.userId = userId;
+    }
+
+    if (projectId) {
+        where.projectId = projectId;
+    }
+
+    if (statusId) {
+        where.statusId = statusId;
+    }
+
+    if (startDate) {
+        where.weekStart = {
+            gte: new Date(startDate)
+        };
+    }
+
+    if (endDate) {
+        where.weekEnd = {
+            lte: new Date(endDate)
+        };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [reports, total] = await prisma.$transaction([
+        prisma.report.findMany({
+            where,
+            skip,
+            take: limit,
+            orderBy: {
+                weekStart: 'desc'
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                },
+                project: {
+                    select: {
+                        id: true,
+                        name: true,
+                        category: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
+                        }
+                    }
+                },
+                status: {
+                    select: {
+                        id: true,
+                        code: true,
+                        name: true
+                    }
+                }
+            }
+        }),
+
+        prisma.report.count({
+            where
+        })
+    ]);
+
+    return {
+        reports,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+        }
+    };
+};
+const getReportVersions = async ({
+    reportId,
+    userId,
+    role
+}) => {
+
+    const report = await prisma.report.findUnique({
+        where: {
+            id: reportId
+        }
+    });
+
+    if (!report) {
+        const error = new Error('Report not found');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    if (role === 'TEAM_MEMBER' && report.userId !== userId) {
+        const error = new Error(
+            'You are not allowed to view this report'
+        );
+        error.statusCode = 403;
+        throw error;
+    }
+
+    const versions = await prisma.reportVersion.findMany({
+        where: {
+            reportId
+        },
+        orderBy: {
+            versionNumber: 'asc'
+        },
+        include: {
+            createdBy: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true
+                }
+            },
+            tasks: {
+                include: {
+                    priority: true,
+                    status: true
+                }
+            },
+            achievements: true,
+            blockers: true,
+            hours: {
+                include: {
+                    taskType: true
+                }
+            },
+            reviews: {
+                include: {
+                    reviewer: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true
+                        }
+                    },
+                    action: true
+                },
+                orderBy: {
+                    createdAt: 'asc'
+                }
+            }
+        }
+    });
+
+    return versions;
+};
+const getStatusByMember = async () => {
+
+    const reports = await prisma.report.findMany({
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            },
+            status: {
+                select: {
+                    code: true,
+                    name: true
+                }
+            }
+        }
+    });
+
+    const result = {};
+
+    reports.forEach(report => {
+
+        const memberName = report.user.name;
+
+        if (!result[memberName]) {
+            result[memberName] = {
+                draft: 0,
+                submitted: 0,
+                correctionRequested: 0,
+                approved: 0
+            };
+        }
+
+        switch (report.status.code) {
+
+            case 'DRAFT':
+                result[memberName].draft++;
+                break;
+
+            case 'SUBMITTED':
+                result[memberName].submitted++;
+                break;
+
+            case 'CORRECTION_REQUESTED':
+                result[memberName].correctionRequested++;
+                break;
+
+            case 'APPROVED':
+                result[memberName].approved++;
+                break;
+        }
+    });
+
+    return result;
+};
+const getWorkloadByProject = async () => {
+
+    const reports = await prisma.report.findMany({
+        include: {
+            project: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            },
+            currentVersion: {
+                include: {
+                    tasks: true
+                }
+            }
+        }
+    });
+
+    const result = {};
+
+    reports.forEach(report => {
+
+        const projectName = report.project.name;
+
+        if (!result[projectName]) {
+            result[projectName] = {
+                plannedHours: 0,
+                spentHours: 0
+            };
+        }
+
+        if (report.currentVersion) {
+
+            report.currentVersion.tasks.forEach(task => {
+
+                result[projectName].plannedHours +=
+                    Number(task.plannedHours);
+
+                result[projectName].spentHours +=
+                    Number(task.spentHours);
+
+            });
+        }
+    });
+
+    return result;
+};
+const getTimeByTaskType = async () => {
+
+    const hours = await prisma.reportHour.findMany({
+        include: {
+            taskType: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            }
+        }
+    });
+
+    const result = {};
+
+    hours.forEach(hour => {
+
+        const taskTypeName = hour.taskType.name;
+
+        if (!result[taskTypeName]) {
+            result[taskTypeName] = 0;
+        }
+
+        result[taskTypeName] += Number(hour.hours);
+    });
+
+    return result;
+};
+const getTaskTrend = async () => {
+
+    const reports = await prisma.report.findMany({
+        orderBy: {
+            weekStart: 'asc'
+        },
+        include: {
+            currentVersion: {
+                include: {
+                    tasks: {
+                        include: {
+                            status: true
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    return reports.map(report => {
+
+        const tasks = report.currentVersion?.tasks || [];
+
+        const completedTasks = tasks.filter(
+            task => task.status.code === 'COMPLETED'
+        ).length;
+
+        const plannedHours = tasks.reduce(
+            (total, task) => total + Number(task.plannedHours),
+            0
+        );
+
+        const spentHours = tasks.reduce(
+            (total, task) => total + Number(task.spentHours),
+            0
+        );
+
+        return {
+            weekStart: report.weekStart,
+            weekEnd: report.weekEnd,
+            totalTasks: tasks.length,
+            completedTasks,
+            plannedHours,
+            spentHours
+        };
+    });
+};
+const getOpenBlockers = async () => {
+
+    const reports = await prisma.report.findMany({
+        where: {
+            status: {
+                code: {
+                    in: [
+                        'SUBMITTED',
+                        'CORRECTION_REQUESTED'
+                    ]
+                }
+            }
+        },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            },
+            project: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            },
+            currentVersion: {
+                include: {
+                    blockers: true
+                }
+            }
+        },
+        orderBy: {
+            updatedAt: 'desc'
+        }
+    });
+
+    const result = [];
+
+    reports.forEach(report => {
+
+        const blockers = report.currentVersion?.blockers || [];
+
+        blockers.forEach(blocker => {
+
+            result.push({
+                reportId: report.id,
+                versionId: report.currentVersion.id,
+                member: report.user.name,
+                project: report.project.name,
+                weekStart: report.weekStart,
+                blocker: blocker.blocker,
+                isKeyBlocker: blocker.isKeyBlocker
+            });
+
+        });
+    });
+
+    return result;
+};
+const getRecentActivity = async () => {
+
+    const reviews = await prisma.reportReview.findMany({
+        orderBy: {
+            createdAt: 'desc'
+        },
+        take: 20,
+        include: {
+            reviewer: {
+                select: {
+                    id: true,
+                    name: true
+                }
+            },
+            action: {
+                select: {
+                    code: true,
+                    name: true
+                }
+            },
+            report: {
+                select: {
+                    id: true,
+                    user: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    },
+                    project: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    }
+                }
+            },
+            reportVersion: {
+                select: {
+                    id: true,
+                    versionNumber: true,
+                    submittedAt: true
+                }
+            }
+        }
+    });
+
+    return reviews.map(review => ({
+        reportId: review.report.id,
+        versionId: review.reportVersion.id,
+        versionNumber: review.reportVersion.versionNumber,
+        member: review.report.user.name,
+        project: review.report.project.name,
+        action: review.action.code,
+        actionName: review.action.name,
+        reviewer: review.reviewer.name,
+        comment: review.comment,
+        createdAt: review.createdAt
+    }));
+};
 module.exports = {
     createReport,
     getReports,
@@ -1564,5 +2108,14 @@ module.exports = {
     requestReportCorrection,
     createCorrectionVersion,
     approveReport,
-    getReportReviews
+    getReportReviews,
+    getDashboardSummary,
+    getManagerReports,
+    getReportVersions,
+    getStatusByMember,
+    getWorkloadByProject,
+    getTimeByTaskType,
+    getTaskTrend,
+    getOpenBlockers,
+    getRecentActivity
 };

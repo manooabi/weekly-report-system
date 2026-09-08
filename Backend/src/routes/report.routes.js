@@ -5,12 +5,13 @@ const validate = require('../middleware/validate.middleware');
 
 const reportController = require('../controllers/report.controller');
 
-const { createReportSchema, createReportVersionSchema } = require('../validators/report.validator');
+const { createReportSchema, createReportVersionSchema,managerReportQuerySchema } = require('../validators/report.validator');
 const {  createTaskSchema, updateTaskSchema } = require('../validators/task.validator');
 const {  createAchievementSchema,updateAchievementSchema } = require('../validators/achievement.validator');
 const {  createBlockerSchema,updateBlockerSchema } = require('../validators/blocker.validator');
 const {  createReportHoursSchema,updateHourSchema } = require('../validators/hours.validator');
 const { requestCorrectionSchema } = require('../validators/review.validator');
+const validateQuery = require('../middleware/validate-query.middleware');
 const requireRole = require('../middleware/role.middleware');
 
 const router = express.Router();
@@ -25,6 +26,60 @@ router.get(
     '/',
     authenticate,
     reportController.getReports
+);
+router.get(
+    '/manager',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    validateQuery(managerReportQuerySchema),
+    reportController.getManagerReports
+);
+router.get(
+    '/dashboard/summary',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    reportController.getDashboardSummary
+);
+router.get(
+    '/:reportId/versions',
+    authenticate,
+    reportController.getReportVersions
+);
+router.get(
+    '/dashboard/status-by-member',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    reportController.getStatusByMember
+);
+router.get(
+    '/dashboard/workload-by-project',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    reportController.getWorkloadByProject
+);
+router.get(
+    '/dashboard/time-by-task-type',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    reportController.getTimeByTaskType
+);
+router.get(
+    '/dashboard/task-trend',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    reportController.getTaskTrend
+);
+router.get(
+    '/dashboard/open-blockers',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    reportController.getOpenBlockers
+);
+router.get(
+    '/dashboard/recent-activity',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    reportController.getRecentActivity
 );
 //Get one own report
 router.get( 
