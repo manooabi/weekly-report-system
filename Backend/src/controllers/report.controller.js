@@ -283,6 +283,121 @@ const deleteReportHour = async (req, res, next) => {
         next(error);
     }
 };
+const submitReportVersion = async (req, res, next) => {
+    try {
+        const result = await reportService.submitReportVersion({
+            reportId: Number(req.params.reportId),
+            versionId: Number(req.params.versionId),
+            userId: req.user.userId
+        });
+
+        res.json({
+            success: true,
+            message: 'Report submitted successfully',
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+const requestReportCorrection = async (req, res, next) => {
+    try {
+        const result = await reportService.requestReportCorrection({
+            reportId: Number(req.params.reportId),
+            versionId: Number(req.params.versionId),
+            reviewerId: req.user.userId,
+            comment: req.body.comment
+        });
+
+        res.json({
+            success: true,
+            message: 'Report correction requested successfully',
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+const createCorrectionVersion = async (req, res, next) => {
+    try {
+        const reportId = Number(req.params.reportId);
+        const userId = req.user.userId;
+
+        const version = await reportService.createCorrectionVersion({
+            reportId,
+            userId
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Correction version created successfully',
+            data: version
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+// const createCorrectionVersion = async (req, res, next) => {
+//     try {
+//         const version = await reportService.createCorrectionVersion({
+//             reportId: Number(req.params.reportId),
+//             userId: req.user.userId
+//         });
+
+//         res.status(201).json({
+//             success: true,
+//             message: 'Correction version created successfully',
+//             data: version
+//         });
+//     } catch (error) {
+//         next(error);
+//     }
+// };
+const approveReport = async (req, res, next) => {
+    try {
+        const reportId = Number(req.params.reportId);
+        const versionId = Number(req.params.versionId);
+        const reviewerId = req.user.userId;
+
+        const { comment } = req.body;
+
+        const result = await reportService.approveReport({
+            reportId,
+            versionId,
+            reviewerId,
+            comment
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Report approved successfully',
+            data: result
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+const getReportReviews = async (req, res, next) => {
+    try {
+        const reportId = Number(req.params.reportId);
+        const userId = req.user.userId;
+        const role = req.user.role;
+
+        const reviews = await reportService.getReportReviews({
+            reportId,
+            userId,
+            role
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Report review history retrieved successfully',
+            data: reviews
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 module.exports = {
     createReport,
     getReports,
@@ -299,5 +414,10 @@ module.exports = {
     updateReportBlocker,
     deleteReportBlocker,
     updateReportHour,
-deleteReportHour
+deleteReportHour,
+submitReportVersion,
+requestReportCorrection,
+createCorrectionVersion,
+approveReport,
+getReportReviews
 };

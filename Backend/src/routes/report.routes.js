@@ -8,13 +8,10 @@ const reportController = require('../controllers/report.controller');
 const { createReportSchema, createReportVersionSchema } = require('../validators/report.validator');
 const {  createTaskSchema, updateTaskSchema } = require('../validators/task.validator');
 const {  createAchievementSchema,updateAchievementSchema } = require('../validators/achievement.validator');
-const {
-    createBlockerSchema,updateBlockerSchema
-} = require('../validators/blocker.validator');
-
-const {
-    createReportHoursSchema,updateHourSchema
-} = require('../validators/hours.validator');
+const {  createBlockerSchema,updateBlockerSchema } = require('../validators/blocker.validator');
+const {  createReportHoursSchema,updateHourSchema } = require('../validators/hours.validator');
+const { requestCorrectionSchema } = require('../validators/review.validator');
+const requireRole = require('../middleware/role.middleware');
 
 const router = express.Router();
 
@@ -112,5 +109,33 @@ router.delete(
     '/:reportId/versions/:versionId/hours/:hourId',
     authenticate,
     reportController.deleteReportHour
+);
+router.post(
+    '/:reportId/versions/:versionId/submit',
+    authenticate,
+    reportController.submitReportVersion
+);
+router.post(
+    '/:reportId/versions/:versionId/request-correction',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    validate(requestCorrectionSchema),
+    reportController.requestReportCorrection
+);
+router.post(
+    '/:reportId/correction-version',
+    authenticate,
+    reportController.createCorrectionVersion
+);
+router.post(
+    '/:reportId/versions/:versionId/approve',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    reportController.approveReport
+);
+router.get(
+    '/:reportId/reviews',
+    authenticate,
+    reportController.getReportReviews
 );
 module.exports = router;
