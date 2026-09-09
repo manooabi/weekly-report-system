@@ -35,11 +35,18 @@ router.get(
     reportController.getManagerReports
 );
 router.get(
+    '/manager/:reportId',
+    authenticate,
+    requireRole('MANAGER', 'ADMIN'),
+    reportController.getManagerReportById
+);
+router.get(
     '/dashboard/summary',
     authenticate,
     requireRole('MANAGER', 'ADMIN'),
     reportController.getDashboardSummary
 );
+
 router.get(
     '/:reportId/versions',
     authenticate,
@@ -85,7 +92,8 @@ router.get(
 router.get( 
     '/:id', 
     authenticate, 
-    reportController.getReportById );
+    reportController.getReportById 
+);
 
     router.post(
     '/:id/versions',

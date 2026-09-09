@@ -73,6 +73,36 @@ const getReportById = async (reportId, userId) => {
 
   return report;
 };
+const getManagerReportById = async (reportId) => {
+    const report = await prisma.report.findUnique({
+        where: {
+            id: reportId
+        },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true
+                }
+            },
+            project: {
+                include: {
+                    category: true
+                }
+            },
+            status: true
+        }
+    });
+
+    if (!report) {
+        const error = new Error('Report not found');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    return report;
+};
 const createReportVersion = async ({
     reportId,
     userId,
@@ -1218,6 +1248,157 @@ const requestReportCorrection = async ({
 
 //     return newVersion;
 // };
+// const createCorrectionVersion = async ({
+//     reportId,
+//     userId
+// }) => {
+
+//     const report = await prisma.report.findUnique({
+//         where: {
+//             id: reportId
+//         }
+//     });
+
+//     if (!report) {
+//         const error = new Error('Report not found');
+//         error.statusCode = 404;
+//         throw error;
+//     }
+
+//     if (report.userId !== userId) {
+//         const error = new Error(
+//             'You are not allowed to create a correction version'
+//         );
+//         error.statusCode = 403;
+//         throw error;
+//     }
+
+//     const correctionStatus = await prisma.reportStatus.findUnique({
+//         where: {
+//             code: 'CORRECTION_REQUESTED'
+//         }
+//     });
+
+//     if (!correctionStatus) {
+//         const error = new Error(
+//             'CORRECTION_REQUESTED status not found'
+//         );
+//         error.statusCode = 500;
+//         throw error;
+//     }
+
+//     if (report.statusId !== correctionStatus.id) {
+//         const error = new Error(
+//             'This report is not waiting for correction'
+//         );
+//         error.statusCode = 400;
+//         throw error;
+//     }
+
+//     if (!report.currentVersionId) {
+//         const error = new Error(
+//             'Current report version not found'
+//         );
+//         error.statusCode = 404;
+//         throw error;
+//     }
+
+//     const currentVersion = await prisma.reportVersion.findUnique({
+//         where: {
+//             id: report.currentVersionId
+//         },
+//         include: {
+//             tasks: true,
+//             achievements: true,
+//             blockers: true,
+//             hours: true
+//         }
+//     });
+
+//     if (!currentVersion) {
+//         const error = new Error(
+//             'Current report version not found'
+//         );
+//         error.statusCode = 404;
+//         throw error;
+//     }
+
+//     const newVersionNumber = currentVersion.versionNumber + 1;
+
+//     const newVersion = await prisma.$transaction(async (tx) => {
+
+//         const version = await tx.reportVersion.create({
+//             data: {
+//                 reportId,
+//                 versionNumber: newVersionNumber,
+//                 createdById: userId,
+//                 nextWeekPlan: currentVersion.nextWeekPlan,
+//                 notes: currentVersion.notes,
+//                 links: currentVersion.links
+//             }
+//         });
+
+//         if (currentVersion.tasks.length > 0) {
+//             await tx.reportTask.createMany({
+//                 data: currentVersion.tasks.map(task => ({
+//                     reportVersionId: version.id,
+//                     taskName: task.taskName,
+//                     priorityId: task.priorityId,
+//                     plannedPercentage: task.plannedPercentage,
+//                     actualPercentage: task.actualPercentage,
+//                     statusId: task.statusId,
+//                     plannedHours: task.plannedHours,
+//                     spentHours: task.spentHours,
+//                     deliverable: task.deliverable
+//                 }))
+//             });
+//         }
+
+//         if (currentVersion.achievements.length > 0) {
+//             await tx.reportAchievement.createMany({
+//                 data: currentVersion.achievements.map(achievement => ({
+//                     reportVersionId: version.id,
+//                     achievement: achievement.achievement,
+//                     isKeyAchievement: achievement.isKeyAchievement
+//                 }))
+//             });
+//         }
+
+//         if (currentVersion.blockers.length > 0) {
+//             await tx.reportBlocker.createMany({
+//                 data: currentVersion.blockers.map(blocker => ({
+//                     reportVersionId: version.id,
+//                     blocker: blocker.blocker,
+//                     isKeyBlocker: blocker.isKeyBlocker
+//                 }))
+//             });
+//         }
+
+//         if (currentVersion.hours.length > 0) {
+//             await tx.reportHour.createMany({
+//                 data: currentVersion.hours.map(hour => ({
+//                     reportVersionId: version.id,
+//                     taskTypeId: hour.taskTypeId,
+//                     hours: hour.hours
+//                 }))
+//             });
+//         }
+
+//         await tx.report.update({
+//             where: {
+//                 id: reportId
+//             },
+//             data: {
+//                 currentVersionId: version.id
+//             }
+//         });
+
+//         return version;
+//     });
+
+//     return newVersion;
+// };
+
 const createCorrectionVersion = async ({
     reportId,
     userId
@@ -1293,81 +1474,150 @@ const createCorrectionVersion = async ({
         throw error;
     }
 
-    const newVersionNumber = currentVersion.versionNumber + 1;
+    /*
+     * If the current version has not been submitted yet,
+     * it is already the correction/editing version.
+     *
+     * This prevents creating Version 3 when the user
+     * refreshes or opens the Edit & Resubmit page again.
+     */
+    if (!currentVersion.submittedAt) {
+        return currentVersion;
+    }
 
-    const newVersion = await prisma.$transaction(async (tx) => {
+    const newVersionNumber =
+        currentVersion.versionNumber + 1;
 
-        const version = await tx.reportVersion.create({
-            data: {
-                reportId,
-                versionNumber: newVersionNumber,
-                createdById: userId,
-                nextWeekPlan: currentVersion.nextWeekPlan,
-                notes: currentVersion.notes,
-                links: currentVersion.links
+    /*
+     * Check whether the next version already exists.
+     *
+     * This protects against duplicate requests where
+     * Version 2 may already have been created.
+     */
+    const existingVersion =
+        await prisma.reportVersion.findUnique({
+            where: {
+                reportId_versionNumber: {
+                    reportId,
+                    versionNumber: newVersionNumber
+                }
+            },
+            include: {
+                tasks: true,
+                achievements: true,
+                blockers: true,
+                hours: true
             }
         });
 
-        if (currentVersion.tasks.length > 0) {
-            await tx.reportTask.createMany({
-                data: currentVersion.tasks.map(task => ({
-                    reportVersionId: version.id,
-                    taskName: task.taskName,
-                    priorityId: task.priorityId,
-                    plannedPercentage: task.plannedPercentage,
-                    actualPercentage: task.actualPercentage,
-                    statusId: task.statusId,
-                    plannedHours: task.plannedHours,
-                    spentHours: task.spentHours,
-                    deliverable: task.deliverable
-                }))
-            });
-        }
+    if (existingVersion) {
 
-        if (currentVersion.achievements.length > 0) {
-            await tx.reportAchievement.createMany({
-                data: currentVersion.achievements.map(achievement => ({
-                    reportVersionId: version.id,
-                    achievement: achievement.achievement,
-                    isKeyAchievement: achievement.isKeyAchievement
-                }))
-            });
-        }
-
-        if (currentVersion.blockers.length > 0) {
-            await tx.reportBlocker.createMany({
-                data: currentVersion.blockers.map(blocker => ({
-                    reportVersionId: version.id,
-                    blocker: blocker.blocker,
-                    isKeyBlocker: blocker.isKeyBlocker
-                }))
-            });
-        }
-
-        if (currentVersion.hours.length > 0) {
-            await tx.reportHour.createMany({
-                data: currentVersion.hours.map(hour => ({
-                    reportVersionId: version.id,
-                    taskTypeId: hour.taskTypeId,
-                    hours: hour.hours
-                }))
-            });
-        }
-
-        await tx.report.update({
+        /*
+         * Make sure the existing version becomes
+         * the current version for editing.
+         */
+        await prisma.report.update({
             where: {
                 id: reportId
             },
             data: {
-                currentVersionId: version.id
+                currentVersionId: existingVersion.id
             }
         });
 
-        return version;
-    });
+        return existingVersion;
+    }
+
+    const newVersion = await prisma.$transaction(
+        async (tx) => {
+
+            const version =
+                await tx.reportVersion.create({
+                    data: {
+                        reportId,
+                        versionNumber: newVersionNumber,
+                        createdById: userId,
+                        nextWeekPlan: currentVersion.nextWeekPlan,
+                        notes: currentVersion.notes,
+                        links: currentVersion.links
+                    }
+                });
+
+            if (currentVersion.tasks.length > 0) {
+                await tx.reportTask.createMany({
+                    data: currentVersion.tasks.map(task => ({
+                        reportVersionId: version.id,
+                        taskName: task.taskName,
+                        priorityId: task.priorityId,
+                        plannedPercentage:
+                            task.plannedPercentage,
+                        actualPercentage:
+                            task.actualPercentage,
+                        statusId: task.statusId,
+                        plannedHours: task.plannedHours,
+                        spentHours: task.spentHours,
+                        deliverable: task.deliverable
+                    }))
+                });
+            }
+
+            if (currentVersion.achievements.length > 0) {
+                await tx.reportAchievement.createMany({
+                    data:
+                        currentVersion.achievements.map(
+                            achievement => ({
+                                reportVersionId: version.id,
+                                achievement:
+                                    achievement.achievement,
+                                isKeyAchievement:
+                                    achievement.isKeyAchievement
+                            })
+                        )
+                });
+            }
+
+            if (currentVersion.blockers.length > 0) {
+                await tx.reportBlocker.createMany({
+                    data:
+                        currentVersion.blockers.map(
+                            blocker => ({
+                                reportVersionId: version.id,
+                                blocker: blocker.blocker,
+                                isKeyBlocker:
+                                    blocker.isKeyBlocker
+                            })
+                        )
+                });
+            }
+
+            if (currentVersion.hours.length > 0) {
+                await tx.reportHour.createMany({
+                    data:
+                        currentVersion.hours.map(hour => ({
+                            reportVersionId: version.id,
+                            taskTypeId: hour.taskTypeId,
+                            hours: hour.hours
+                        }))
+                });
+            }
+
+            await tx.report.update({
+                where: {
+                    id: reportId
+                },
+                data: {
+                    currentVersionId: version.id
+                }
+            });
+
+            return version;
+        }
+    );
 
     return newVersion;
 };
+
+
 const approveReport = async ({
     reportId,
     versionId,
@@ -1627,6 +1877,7 @@ const getDashboardSummary = async () => {
 const getManagerReports = async ({
     userId,
     projectId,
+    categoryId,
     statusId,
     startDate,
     endDate,
@@ -1643,6 +1894,9 @@ const getManagerReports = async ({
     if (projectId) {
         where.projectId = projectId;
     }
+    if (categoryId) {
+         where.project = { categoryId: categoryId }; 
+        }
 
     if (statusId) {
         where.statusId = statusId;
@@ -2117,5 +2371,6 @@ module.exports = {
     getTimeByTaskType,
     getTaskTrend,
     getOpenBlockers,
-    getRecentActivity
+    getRecentActivity,
+    getManagerReportById
 };

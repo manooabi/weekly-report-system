@@ -14,6 +14,7 @@ function Register() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleChange = (event) => {
         setFormData({
@@ -32,7 +33,9 @@ function Register() {
         try {
             await authService.register(formData);
 
-            setSuccess('Registration successful. Please login.');
+            setSuccess(
+                'Registration successful. Please login.'
+            );
 
             setTimeout(() => {
                 navigate('/login');
@@ -49,73 +52,173 @@ function Register() {
 
     return (
         <div className="auth-page">
+            <div className="auth-background-shape auth-shape-one"></div>
+            <div className="auth-background-shape auth-shape-two"></div>
+
             <div className="auth-card">
-                <h1>Weekly Work Reporting System</h1>
-
-                <h2>Create Account</h2>
-
-                <form onSubmit={handleSubmit}>
-                    <div>
-                        <label htmlFor="name">Name</label>
-                        <input
-                            id="name"
-                            type="text"
-                            name="name"
-                            value={formData.name}
-                            onChange={handleChange}
-                            placeholder="Enter your name"
-                            required
-                        />
+                <div className="auth-brand">
+                    <div className="auth-brand-icon">
+                        WR
                     </div>
 
                     <div>
-                        <label htmlFor="email">Email</label>
-                        <input
-                            id="email"
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            placeholder="Enter your email"
-                            required
-                        />
+                        <div className="auth-brand-name">
+                            WorkReport
+                        </div>
+
+                        <div className="auth-brand-subtitle">
+                            Weekly Work Reporting System
+                        </div>
+                    </div>
+                </div>
+
+                <div className="auth-heading">
+                    <h1>Create your account</h1>
+
+                    <p>
+                        Set up your account to start managing
+                        weekly work reports.
+                    </p>
+                </div>
+
+                {error && (
+                    <div className="auth-alert auth-alert-error">
+                        <span className="auth-alert-icon">!</span>
+
+                        <span>{error}</span>
+                    </div>
+                )}
+
+                {success && (
+                    <div className="auth-alert auth-alert-success">
+                        <span className="auth-alert-icon">✓</span>
+
+                        <span>{success}</span>
+                    </div>
+                )}
+
+                <form
+                    className="auth-form"
+                    onSubmit={handleSubmit}
+                >
+                    <div className="auth-form-group">
+                        <label htmlFor="name">
+                            Full name
+                        </label>
+
+                        <div className="auth-input-wrapper">
+                            <span className="auth-input-icon">
+                                ●
+                            </span>
+
+                            <input
+                                id="name"
+                                type="text"
+                                name="name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                placeholder="Enter your full name"
+                                autoComplete="name"
+                                required
+                            />
+                        </div>
                     </div>
 
-                    <div>
-                        <label htmlFor="password">Password</label>
-                        <input
-                            id="password"
-                            type="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            placeholder="Enter your password"
-                            minLength="8"
-                            required
-                        />
+                    <div className="auth-form-group">
+                        <label htmlFor="email">
+                            Email address
+                        </label>
+
+                        <div className="auth-input-wrapper">
+                            <span className="auth-input-icon">
+                                @
+                            </span>
+
+                            <input
+                                id="email"
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                placeholder="you@example.com"
+                                autoComplete="email"
+                                required
+                            />
+                        </div>
                     </div>
 
-                    {error && (
-                        <p className="error-message">
-                            {error}
-                        </p>
-                    )}
+                    <div className="auth-form-group">
+                        <label htmlFor="password">
+                            Password
+                        </label>
 
-                    {success && (
-                        <p className="success-message">
-                            {success}
-                        </p>
-                    )}
+                        <div className="auth-input-wrapper">
+                            <span className="auth-input-icon">
+                                •
+                            </span>
 
-                    <button type="submit" disabled={loading}>
-                        {loading ? 'Creating account...' : 'Register'}
+                            <input
+                                id="password"
+                                type={
+                                    showPassword
+                                        ? 'text'
+                                        : 'password'
+                                }
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                placeholder="Create a password"
+                                minLength="8"
+                                autoComplete="new-password"
+                                required
+                            />
+
+                            <button
+                                type="button"
+                                className="password-toggle"
+                                onClick={() =>
+                                    setShowPassword(
+                                        !showPassword
+                                    )
+                                }
+                                aria-label={
+                                    showPassword
+                                        ? 'Hide password'
+                                        : 'Show password'
+                                }
+                            >
+                                {showPassword ? 'Hide' : 'Show'}
+                            </button>
+                        </div>
+
+                        <span className="auth-field-hint">
+                            Password must contain at least 8 characters.
+                        </span>
+                    </div>
+
+                    <button
+                        className="auth-submit-button"
+                        type="submit"
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <>
+                                <span className="auth-button-spinner"></span>
+                                Creating account...
+                            </>
+                        ) : (
+                            'Create account'
+                        )}
                     </button>
                 </form>
 
-                <p>
-                    Already have an account?{' '}
-                    <Link to="/login">Login</Link>
-                </p>
+                <div className="auth-footer">
+                    <span>Already have an account?</span>
+
+                    <Link to="/login">
+                        Sign in
+                    </Link>
+                </div>
             </div>
         </div>
     );

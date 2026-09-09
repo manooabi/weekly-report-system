@@ -195,12 +195,47 @@ const deleteProject = async (req, res, next) => {
         next(error);
     }
 };
+const getMyProjects = async (req, res, next) => {
+    try {
+        const userId = req.user.userId;
 
+        const projects = await prisma.project.findMany({
+            where: {
+                isActive: true,
+                members: {
+                    some: {
+                        userId
+                    }
+                }
+            },
+            include: {
+                category: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            },
+            orderBy: {
+                name: 'asc'
+            }
+        });
+
+        res.json({
+            success: true,
+            message: 'Assigned projects retrieved successfully',
+            data: projects
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 module.exports = {
     getProjects,
     getProjectById,
     createProject,
     updateProject,
-    deleteProject
+    deleteProject,
+    getMyProjects
 };
 

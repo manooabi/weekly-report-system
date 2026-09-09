@@ -20,7 +20,12 @@ router.get(
     requireRole('MANAGER', 'ADMIN'),
     projectController.getProjects
 );
-
+router.get(
+    '/my-projects',
+    authenticate,
+    requireRole('TEAM_MEMBER'),
+    projectController.getMyProjects
+);
 // Manager/Admin can view a project
 router.get(
     '/:id',

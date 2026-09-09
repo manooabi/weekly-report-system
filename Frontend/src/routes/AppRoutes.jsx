@@ -6,6 +6,7 @@ import ManagerLayout from '../layouts/ManagerLayout';
 
 import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
+import EditReport from '../pages/team/EditReport';
 
 import TeamDashboard from '../pages/team/TeamDashboard';
 import MyReports from '../pages/team/MyReports';
@@ -16,6 +17,9 @@ import ManagerDashboard from '../pages/manager/ManagerDashboard';
 import ManagerReports from '../pages/manager/ManagerReports';
 import ManagerReportDetails from '../pages/manager/ManagerReportDetails';
 import ProtectedRoute from './ProtectedRoute';
+import ProjectManagement from '../pages/manager/ProjectManagement';
+import UserManagement from '../pages/manager/UserManagement';
+import TeamMemberProfile from '../pages/manager/TeamMemberProfile';
 
 function AppRoutes() {
     return (
@@ -75,7 +79,16 @@ function AppRoutes() {
                         </ProtectedRoute>
                     }
                 />
-
+<Route
+    path="/team/reports/:id/edit"
+    element={
+        <ProtectedRoute allowedRoles={['TEAM_MEMBER']}>
+            <TeamLayout>
+                <EditReport />
+            </TeamLayout>
+        </ProtectedRoute>
+    }
+/>
                 <Route
                     path="/team/reports/:id"
                     element={
@@ -120,7 +133,36 @@ function AppRoutes() {
                         </ProtectedRoute>
                     }
                 />
-
+<Route
+    path="/manager/projects"
+    element={
+        <ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']}>
+            <ManagerLayout>
+                <ProjectManagement />
+            </ManagerLayout>
+        </ProtectedRoute>
+    }
+/>
+<Route
+    path="/manager/users"
+    element={
+        <ProtectedRoute allowedRoles={['ADMIN']}>
+            <ManagerLayout>
+                <UserManagement />
+            </ManagerLayout>
+        </ProtectedRoute>
+    }
+/>
+<Route
+    path="/manager/users/:id"
+    element={
+        <ProtectedRoute allowedRoles={['MANAGER', 'ADMIN']}>
+            <ManagerLayout>
+                <TeamMemberProfile />
+            </ManagerLayout>
+        </ProtectedRoute>
+    }
+/>
                 {/* Default */}
                 <Route
                     path="*"

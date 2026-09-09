@@ -13,6 +13,7 @@ const createReportVersionSchema = z.object({
 const managerReportQuerySchema = z.object({
     userId: z.coerce.number().int().positive().optional(),
     projectId: z.coerce.number().int().positive().optional(),
+    categoryId: z.coerce.number().int().positive().optional(),
     statusId: z.coerce.number().int().positive().optional(),
     startDate: z.string().optional(),
     endDate: z.string().optional(),

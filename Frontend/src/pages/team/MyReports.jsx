@@ -1,5 +1,236 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import api from '../../services/api';
+
 function MyReports() {
-    return <h1>My Reports</h1>;
+    const [reports, setReports] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        const fetchReports = async () => {
+            try {
+                const response = await api.get('/reports');
+                setReports(response.data.data || []);
+            } catch (error) {
+                setError(
+                    error.response?.data?.message ||
+                    'Failed to load reports.'
+                );
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchReports();
+    }, []);
+
+    const getStatusClass = (statusCode) => {
+        switch (statusCode) {
+            case 'DRAFT':
+                return 'status-badge status-draft';
+
+            case 'SUBMITTED':
+                return 'status-badge status-submitted';
+
+            case 'APPROVED':
+                return 'status-badge status-approved';
+
+            case 'CORRECTION_REQUESTED':
+                return 'status-badge status-correction';
+
+            default:
+                return 'status-badge';
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="page-state">
+                <div className="loading-spinner"></div>
+                <p>Loading reports...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="page-state error-state">
+                <div className="state-icon">!</div>
+                <h3>Unable to load reports</h3>
+                <p>{error}</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="dashboard-page">
+            <div className="dashboard-welcome">
+                <div>
+                    <p className="page-eyebrow">
+                        REPORT MANAGEMENT
+                    </p>
+
+                    <h2>My Reports</h2>
+
+                    <p>
+                        Create, view and manage your
+                        weekly work reports.
+                    </p>
+                </div>
+
+                <Link
+                    to="/team/reports/create"
+                    className="primary-button"
+                >
+                    <span>+</span>
+                    Create New Report
+                </Link>
+            </div>
+
+            <section className="dashboard-section">
+                <div className="section-header">
+                    <div>
+                        <p className="page-eyebrow">
+                            REPORT HISTORY
+                        </p>
+
+                        <h2>All Reports</h2>
+
+                        <p>
+                            View the status and details
+                            of your submitted reports.
+                        </p>
+                    </div>
+
+                    <div className="reports-count">
+                        {reports.length}{' '}
+                        {reports.length === 1
+                            ? 'Report'
+                            : 'Reports'}
+                    </div>
+                </div>
+
+                {reports.length === 0 ? (
+                    <div className="empty-state">
+                        <div className="empty-state-icon">
+                            ▦
+                        </div>
+
+                        <h3>No reports found</h3>
+
+                        <p>
+                            You haven't created any
+                            weekly reports yet.
+                        </p>
+
+                        <Link
+                            to="/team/reports/create"
+                            className="primary-button"
+                        >
+                            Create Your First Report
+                        </Link>
+                    </div>
+                ) : (
+                    <div className="table-card">
+                        <div className="table-wrapper">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Week</th>
+                                        <th>Project</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {reports.map(
+                                        (report) => (
+                                            <tr
+                                                key={
+                                                    report.id
+                                                }
+                                            >
+                                                <td>
+                                                    <div className="week-cell">
+                                                        <strong>
+                                                            {new Date(
+                                                                report.weekStart
+                                                            ).toLocaleDateString(
+                                                                'en-GB',
+                                                                {
+                                                                    day: '2-digit',
+                                                                    month: 'short',
+                                                                    year: 'numeric'
+                                                                }
+                                                            )}
+                                                        </strong>
+
+                                                        <span>
+                                                            to{' '}
+                                                            {new Date(
+                                                                report.weekEnd
+                                                            ).toLocaleDateString(
+                                                                'en-GB',
+                                                                {
+                                                                    day: '2-digit',
+                                                                    month: 'short',
+                                                                    year: 'numeric'
+                                                                }
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                </td>
+
+                                                <td>
+                                                    <span className="project-name">
+                                                        {
+                                                            report
+                                                                .project
+                                                                ?.name
+                                                        }
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    <span
+                                                        className={getStatusClass(
+                                                            report
+                                                                .status
+                                                                ?.code
+                                                        )}
+                                                    >
+                                                        {
+                                                            report
+                                                                .status
+                                                                ?.name
+                                                        }
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    <Link
+                                                        to={`/team/reports/${report.id}`}
+                                                        className="table-action"
+                                                    >
+                                                        View Report
+                                                        <span>
+                                                            →
+                                                        </span>
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        )
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </section>
+        </div>
+    );
 }
 
 export default MyReports;

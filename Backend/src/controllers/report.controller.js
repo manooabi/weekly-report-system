@@ -47,6 +47,21 @@ const getReportById = async (req, res, next) => {
         next(error);
     }
 };
+const getManagerReportById = async (req, res, next) => {
+    try {
+        const report = await reportService.getManagerReportById(
+            Number(req.params.reportId)
+        );
+
+        res.json({
+            success: true,
+            message: 'Manager report retrieved successfully',
+            data: report
+        });
+    } catch (error) {
+        next(error);
+    }
+};
 const createReportVersion = async (req, res, next) => {
     try {
         const version = await reportService.createReportVersion({
@@ -411,13 +426,28 @@ const getDashboardSummary = async (req, res, next) => {
         next(error);
     }
 };
+// const getManagerReports = async (req, res, next) => {
+//     try {
+// const result = await reportService.getManagerReports({
+//     ...req.query,
+//     page: Number(req.query.page || 1),
+//     limit: Number(req.query.limit || 10)
+// });
+//         res.status(200).json({
+//             success: true,
+//             message: 'Manager reports retrieved successfully',
+//             data: result
+//         });
+//     } catch (error) {
+//         next(error);
+//     }
+// };
 const getManagerReports = async (req, res, next) => {
     try {
-const result = await reportService.getManagerReports({
-    ...req.query,
-    page: Number(req.query.page || 1),
-    limit: Number(req.query.limit || 10)
-});
+        const result = await reportService.getManagerReports(
+            req.validatedQuery
+        );
+
         res.status(200).json({
             success: true,
             message: 'Manager reports retrieved successfully',
@@ -568,5 +598,6 @@ getWorkloadByProject,
 getTimeByTaskType,
 getTaskTrend,
 getOpenBlockers,
-getRecentActivity
+getRecentActivity,
+getManagerReportById
 };
